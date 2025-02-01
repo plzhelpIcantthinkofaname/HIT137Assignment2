@@ -3,8 +3,8 @@ Program: EZ Image Editor
 Description: A program developed for Assignment 3 of HIT137 to load, crop, resize image and save. 
 The program also has additional bonus features: rotate, flip (vertical and horizontal), undo/redo and keyboard shortcuts to enhance functionality.
 
-Authors: Darren Swann, Brayden Brown, Rijan Koirala and Jaafar Mehydeen
-Last Updated: 24/01/2025
+Authors: Darren Swann, Brayden Brown and Rijan Koirala
+Last Updated: 31/01/2025
 
 Features:
 1. Load an image: Allows the user to load an image from their local system and it will automatically resize it to fit within the canvas.
@@ -24,6 +24,7 @@ Features:
     - Ctrl + Y: Redo the last undone action.
 """
 
+# Import Modules / Libraries
 import tkinter as tk
 from tkinter import filedialog, messagebox
 import cv2
