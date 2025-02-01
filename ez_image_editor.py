@@ -35,28 +35,35 @@ class EZImageEditor:
         """
         Initialise the EZ Image Editor with GUI components.
         """
+        # Create the main window
         self.root = root
         self.root.title("EZ Image Editor")
 
-        # Initialise variables
+        # Initialise variables to store the original and cropped images
         self.image = None
         self.original_image = None
         self.cropped_image = None
+
+        # Variables to store the start position of the cropping rectangle
         self.start_x = None
         self.start_y = None
+
+        # Variable to store the ID of the cropping rectangle
         self.rect_id = None
+
+        # Lists to store the history of actions for undo/redo functionality
         self.history = []
         self.redo_stack = []
 
-        # Frame for canvases
+        # Create a frame to hold the canvases
         self.image_frame = tk.Frame(root)
         self.image_frame.pack()
 
-        # Original Image Canvas
+        # Create a canvas to display the original image
         self.original_canvas = tk.Canvas(self.image_frame, width=500, height=450, bg="lightgray")
         self.original_canvas.pack(side="left", padx=5)
 
-        # Cropped Image Canvas
+        # Create a canvas to display the cropped image
         self.cropped_canvas = tk.Canvas(self.image_frame, width=500, height=450, bg="lightgray")
         self.cropped_canvas.pack(side="left", padx=5)
 
@@ -69,11 +76,11 @@ class EZImageEditor:
         )
         self.instruction_label.pack(pady=5)
 
-        # Bottom Frame for buttons
+        # Create a frame to hold the buttons
         self.bottom_frame = tk.Frame(root)
         self.bottom_frame.pack(pady=10)
 
-        # Buttons
+        # Create buttons for loading, saving, rotating, flipping, and resizing the image
         self.load_button = tk.Button(self.bottom_frame, text="Load", command=self.load_image)
         self.load_button.grid(row=0, column=0, padx=10)
 
@@ -98,11 +105,11 @@ class EZImageEditor:
         self.save_button = tk.Button(self.bottom_frame, text="Save", command=self.save_image, state="disabled")
         self.save_button.grid(row=0, column=6, padx=10)
 
-        # Frame for shortcut instructions
+        # Create a frame to hold the shortcut instructions
         self.shortcut_frame = tk.Frame(root)
         self.shortcut_frame.pack(pady=5)
 
-        # Shortcut instructions label
+        # Create a label to display the shortcut instructions
         self.shortcut_label = tk.Label(
             self.shortcut_frame,
             text="Shortcuts: Ctrl+L (Load), Ctrl+S (Save), Ctrl+R (Rotate), Ctrl+H (Flip Horizontal), Ctrl+V (Flip Vertical), Ctrl+Z (Undo), Ctrl+Y (Redo)",
@@ -125,14 +132,24 @@ class EZImageEditor:
         root.bind("<Control-v>", lambda event: self.flip_vertical())
 
     def load_image(self):
-        """Load an image from the user's system and display it resized to fit the canvas."""
+        """
+        Load an image from the user's system and display it resized to fit the canvas.
+        """
+        # Open a file dialog to select an image file
         file_path = filedialog.askopenfilename(filetypes=[("Image files", "*.jpg;*.jpeg;*.png")])
+        
+        # Check if a file was selected
         if file_path:
+            # Read the selected image using OpenCV
             self.original_image = cv2.imread(file_path)
+            
+            # Resize the image to fit the canvas
             self.image = self.resize_to_fit_canvas(self.original_image, self.original_canvas)
+            
+            # Display the resized image on the original canvas
             self.display_image(self.image, self.original_canvas)
 
-            # Reset cropped image and buttons
+            # Reset the cropped image and buttons
             self.cropped_image = None
             self.save_button["state"] = "disabled"
             self.rotate_button["state"] = "disabled"
@@ -143,42 +160,75 @@ class EZImageEditor:
             self.redo_stack.clear()
 
     def resize_to_fit_canvas(self, image, canvas):
-        """Resize an image to fit within a canvas while maintaining aspect ratio."""
+        """
+        Resize an image to fit within a canvas while maintaining aspect ratio.
+        """
+        # Get the width and height of the canvas
         canvas_width, canvas_height = canvas.winfo_width(), canvas.winfo_height()
+        
+        # Get the height and width of the image
         image_height, image_width = image.shape[:2]
 
-        # Calculate scaling factor
+        # Calculate the scaling factor
         scale = min(canvas_width / image_width, canvas_height / image_height)
+        
+        # Calculate the new width and height of the image
         new_width = int(image_width * scale)
         new_height = int(image_height * scale)
 
+        # Resize the image using OpenCV
         return cv2.resize(image, (new_width, new_height))
 
     def display_image(self, image, canvas):
-        """Display an OpenCV image on a Tkinter canvas."""
+        """
+        Display an OpenCV image on a Tkinter canvas.
+        """
+        # Convert the image from BGR to RGB
         image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        
+        # Convert the image to a PIL image
         image_pil = Image.fromarray(image_rgb)
+        
+        # Convert the PIL image to a Tkinter image
         image_tk = ImageTk.PhotoImage(image_pil)
+        
+        # Display the image on the canvas
         canvas.create_image(0, 0, anchor="nw", image=image_tk)
+        
+        # Keep a reference to the image to prevent it from being garbage collected
         canvas.image_tk = image_tk
 
     def start_crop(self, event):
-        """Start the cropping process by recording the initial mouse click position."""
+        """
+        Start the cropping process by recording the initial mouse click position.
+        """
+        # Record the x and y coordinates of the mouse click
         self.start_x, self.start_y = event.x, event.y
 
     def draw_crop_rectangle(self, event):
-        """Draw a rectangle to visualise the cropping area."""
+        """
+        Draw a rectangle to visualise the cropping area.
+        """
+        # Check if a rectangle is already drawn
         if self.rect_id:
+            # Delete the existing rectangle
             self.original_canvas.delete(self.rect_id)
+        
+        # Draw a new rectangle
         self.rect_id = self.original_canvas.create_rectangle(
             self.start_x, self.start_y, event.x, event.y, outline="red"
         )
 
     def perform_crop(self, event):
-        """Crop the selected area and display it in the cropped canvas."""
+        """
+        Crop the selected area and display it in the cropped canvas.
+        """
+        # Check if an image is loaded
         if self.image is not None:
             # Get the ending coordinates of the cropping rectangle
             end_x, end_y = event.x, event.y
+            
+            # Calculate the top-left and bottom-right coordinates of the cropping rectangle
             x1, y1 = min(self.start_x, end_x), min(self.start_y, end_y)
             x2, y2 = max(self.start_x, end_x), max(self.start_y, end_y)
 
@@ -220,64 +270,133 @@ class EZImageEditor:
             self.resize_slider.set(100)  # Reset the slider to 100%
 
     def resize_cropped_image(self, scale):
-        """Resize the cropped image based on the slider value."""
+        """
+        Resize the cropped image based on the slider value.
+        """
+        # Check if a cropped image is available
         if self.cropped_image is not None:
+            # Convert the scale to a float
             scale = int(scale) / 100.0
+            
+            # Calculate the new width and height of the cropped image
             resized_width = int(self.cropped_image.shape[1] * scale)
             resized_height = int(self.cropped_image.shape[0] * scale)
+            
+            # Resize the cropped image using OpenCV
             resized_image = cv2.resize(self.cropped_image, (resized_width, resized_height))
+            
+            # Display the resized image in the cropped canvas
             self.display_image(resized_image, self.cropped_canvas)
 
     def save_image(self):
-        """Save the cropped image to a file."""
+        """
+        Save the cropped image to a file.
+        """
+        # Check if a cropped image is available
         if self.cropped_image is not None:
+            # Open a file dialog to select a save location
             file_path = filedialog.asksaveasfilename(defaultextension=".png", filetypes=[("PNG files", "*.png")])
+            
+            # Check if a file was selected
             if file_path:
+                # Save the cropped image using OpenCV
                 cv2.imwrite(file_path, self.cropped_image)
+                
+                # Show a message box to confirm the save
                 messagebox.showinfo("Save Image", "Cropped image saved successfully!")
 
     def rotate_90(self):
-        """Rotate the cropped image by 90 degrees."""
+        """
+        Rotate the cropped image by 90 degrees.
+        """
+        # Check if a cropped image is available
         if self.cropped_image is not None:
+            # Add the current state of the cropped image to the history stack
             self.add_to_history(self.cropped_image)
+            
+            # Rotate the cropped image using OpenCV
             self.cropped_image = cv2.rotate(self.cropped_image, cv2.ROTATE_90_CLOCKWISE)
+            
+            # Display the rotated image in the cropped canvas
             self.display_image(self.cropped_image, self.cropped_canvas)
 
     def flip_horizontal(self):
-        """Flip the cropped image horizontally."""
+        """
+        Flip the cropped image horizontally.
+        """
+        # Check if a cropped image is available
         if self.cropped_image is not None:
+            # Add the current state of the cropped image to the history stack
             self.add_to_history(self.cropped_image)
+            
+            # Flip the cropped image horizontally using OpenCV
             self.cropped_image = cv2.flip(self.cropped_image, 1)
+            
+            # Display the flipped image in the cropped canvas
             self.display_image(self.cropped_image, self.cropped_canvas)
 
     def flip_vertical(self):
-        """Flip the cropped image vertically."""
+        """
+        Flip the cropped image vertically.
+        """
+        # Check if a cropped image is available
         if self.cropped_image is not None:
+            # Add the current state of the cropped image to the history stack
             self.add_to_history(self.cropped_image)
+            
+            # Flip the cropped image vertically using OpenCV
             self.cropped_image = cv2.flip(self.cropped_image, 0)
+            
+            # Display the flipped image in the cropped canvas
             self.display_image(self.cropped_image, self.cropped_canvas)
 
     def add_to_history(self, image):
-        """Add the current state of the cropped image to the history stack for undo/redo functionality."""
+        """
+        Add the current state of the cropped image to the history stack for undo/redo functionality.
+        """
+        # Add the current state of the cropped image to the history stack
         self.history.append(image.copy())
-        self.redo_stack.clear()  # Clear the redo stack whenever a new action is performed
+        
+        # Clear the redo stack whenever a new action is performed
+        self.redo_stack.clear()
 
     def undo(self):
-        """Undo the last action performed on the cropped image."""
+        """
+        Undo the last action performed on the cropped image.
+        """
+        # Check if there are actions to undo
         if self.history:
+            # Add the current state of the cropped image to the redo stack
             self.redo_stack.append(self.cropped_image.copy())
+            
+            # Revert the cropped image to its previous state
             self.cropped_image = self.history.pop()
+            
+            # Display the reverted image in the cropped canvas
             self.display_image(self.cropped_image, self.cropped_canvas)
 
     def redo(self):
-        """Redo the last undone action on the cropped image."""
+        """
+        Redo the last undone action on the cropped image.
+        """
+        # Check if there are actions to redo
         if self.redo_stack:
+            # Add the current state of the cropped image to the history stack
             self.history.append(self.cropped_image.copy())
+            
+            # Restore the cropped image to its previous state
             self.cropped_image = self.redo_stack.pop()
+            
+            # Display the restored image in the cropped canvas
             self.display_image(self.cropped_image, self.cropped_canvas)
 
 # Entry point for the application
 if __name__ == "__main__":
+    # Create the main window
     root = tk.Tk()
+    
+    # Create an instance of the EZImageEditor class
     app = EZImageEditor(root)
+    
+    # Start the main event loop
     root.mainloop()
